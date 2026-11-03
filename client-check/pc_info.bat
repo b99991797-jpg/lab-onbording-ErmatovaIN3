@@ -1,10 +1,5 @@
 @echo off
-chcp 65001 >nul
-title Аудит компьютера
-
-REM Тема: Аудит клиентского компьютера
-REM Фамилия: Ermatova
-REM Дата: %date%
+title PC Audit
 
 set "report=%~dp0pc_report.txt"
 set "temp_apps=%temp%\apps_list.txt"
@@ -12,121 +7,128 @@ set "temp_apps=%temp%\apps_list.txt"
 if exist "%temp_apps%" del "%temp_apps%"
 if exist "%report%" del "%report%"
 
-REM Подпрограмма для вывода (и на экран, и в файл)
-:log
-echo(%~1
-echo(%~1>> "%report%"
-exit /b
+echo ==========================================
+echo   PC AUDIT REPORT
+echo   Date: %date% %time%
+echo ==========================================
+echo.
+echo ========================================== >> "%report%"
+echo   PC AUDIT REPORT >> "%report%"
+echo   Date: %date% %time% >> "%report%"
+echo ========================================== >> "%report%"
+echo. >> "%report%"
 
-REM Начало отчета с датой и временем
-call :log "=========================================="
-call :log "  АУДИТ КОМПЬЮТЕРА"
-call :log "  Дата: %date% %time%"
-call :log "=========================================="
-call :log ""
+echo [Operating System]
+echo [Operating System] >> "%report%"
+powershell -command "(Get-CimInstance Win32_OperatingSystem).Caption"
+powershell -command "(Get-CimInstance Win32_OperatingSystem).Caption" >> "%report%"
+powershell -command "(Get-CimInstance Win32_OperatingSystem).Version"
+powershell -command "(Get-CimInstance Win32_OperatingSystem).Version" >> "%report%"
+echo.
+echo. >> "%report%"
 
-REM Операционная система
-call :log "[Операционная система]"
-set "os_name="
-set "os_ver="
-for /f "tokens=*" %%a in ('powershell -command "(Get-CimInstance Win32_OperatingSystem).Caption"') do set "os_name=%%a"
-for /f "tokens=*" %%a in ('powershell -command "(Get-CimInstance Win32_OperatingSystem).Version"') do set "os_ver=%%a"
-if defined os_name (call :log "Название: %os_name%") else (call :log "Название: Не удалось определить")
-if defined os_ver (call :log "Версия: %os_ver%") else (call :log "Версия: Не удалось определить")
-call :log ""
+echo [Processor]
+echo [Processor] >> "%report%"
+powershell -command "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"
+powershell -command "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name" >> "%report%"
+echo.
+echo. >> "%report%"
 
-REM Процессор
-call :log "[Процессор]"
-set "cpu_name="
-for /f "tokens=*" %%a in ('powershell -command "(Get-CimInstance Win32_Processor | Select-Object -First 1).Name"') do set "cpu_name=%%a"
-if defined cpu_name (call :log "%cpu_name%") else (call :log "Не удалось определить")
-call :log ""
+echo [RAM]
+echo [RAM] >> "%report%"
+powershell -command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)"
+powershell -command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)" >> "%report%"
+powershell -command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)"
+powershell -command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)" >> "%report%"
+echo.
+echo. >> "%report%"
 
-REM Оперативная память
-call :log "[Оперативная память]"
-set "ram_total="
-set "ram_free="
-for /f "tokens=*" %%a in ('powershell -command "[math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)"') do set "ram_total=%%a"
-for /f "tokens=*" %%a in ('powershell -command "[math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1MB, 2)"') do set "ram_free=%%a"
-if defined ram_total (call :log "Всего: %ram_total% ГБ") else (call :log "Всего: Не удалось определить")
-if defined ram_free (call :log "Свободно: %ram_free% ГБ") else (call :log "Свободно: Не удалось определить")
-call :log ""
+echo [Disk C]
+echo [Disk C] >> "%report%"
+powershell -command "[math]::Round((Get-Volume C).Size / 1GB, 2)"
+powershell -command "[math]::Round((Get-Volume C).Size / 1GB, 2)" >> "%report%"
+powershell -command "[math]::Round((Get-Volume C).SizeRemaining / 1GB, 2)"
+powershell -command "[math]::Round((Get-Volume C).SizeRemaining / 1GB, 2)" >> "%report%"
+echo.
+echo. >> "%report%"
 
-REM Диск C
-call :log "[Диск C]"
-set "disk_size="
-set "disk_free="
-for /f "tokens=*" %%a in ('powershell -command "[math]::Round((Get-Volume C).Size / 1GB, 2)"') do set "disk_size=%%a"
-for /f "tokens=*" %%a in ('powershell -command "[math]::Round((Get-Volume C).SizeRemaining / 1GB, 2)"') do set "disk_free=%%a"
-if defined disk_size (call :log "Общий размер: %disk_size% ГБ") else (call :log "Общий размер: Не удалось определить")
-if defined disk_free (call :log "Свободно: %disk_free% ГБ") else (call :log "Свободно: Не удалось определить")
-call :log ""
-
-REM Сбор списка программ
-call :log "[Сбор списка программ... Подождите]"
+echo [Collecting installed programs... Please wait]
+echo [Collecting installed programs... Please wait] >> "%report%"
 reg query "HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall" /s | findstr "DisplayName" | findstr /V "HKEY" > "%temp_apps%"
 reg query "HKLM\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" /s | findstr "DisplayName" | findstr /V "HKEY" >> "%temp_apps%"
 
-REM Проверка базового ПО
-call :log "=========================================="
-call :log "  ПРОВЕРКА БАЗОВОГО ПО"
-call :log "=========================================="
+echo ==========================================
+echo   BASIC SOFTWARE CHECK
+echo ==========================================
+echo ========================================== >> "%report%"
+echo   BASIC SOFTWARE CHECK >> "%report%"
+echo ========================================== >> "%report%"
 
 set "found_office=0"
-findstr /I /C:"Office" /C:"LibreOffice" /C:"OpenOffice" /C:"МойОфис" "%temp_apps%" >nul && set "found_office=1"
-if %found_office%==0 (call :log "[!] Офисный пакет не найден. Рекомендуется установить MS Office или LibreOffice.") else (call :log "[OK] Офисный пакет установлен.")
+findstr /I /C:"Office" /C:"LibreOffice" /C:"OpenOffice" "%temp_apps%" >nul && set "found_office=1"
+if %found_office%==0 (echo [!] Office suite not found. Recommended: MS Office or LibreOffice. & echo [!] Office suite not found. Recommended: MS Office or LibreOffice. >> "%report%") else (echo [OK] Office suite installed. & echo [OK] Office suite installed. >> "%report%")
 
 set "found_browser=0"
 findstr /I /C:"Chrome" /C:"Firefox" /C:"Yandex" /C:"Edge" "%temp_apps%" >nul && set "found_browser=1"
-if %found_browser%==0 (call :log "[!] Браузер не найден. Рекомендуется установить Chrome или Яндекс.Браузер.") else (call :log "[OK] Браузер установлен.")
+if %found_browser%==0 (echo [!] Browser not found. & echo [!] Browser not found. >> "%report%") else (echo [OK] Browser installed. & echo [OK] Browser installed. >> "%report%")
 
 set "found_archiver=0"
 findstr /I /C:"7-Zip" /C:"WinRAR" /C:"WinZip" "%temp_apps%" >nul && set "found_archiver=1"
-if %found_archiver%==0 (call :log "[!] Архиватор не найден. Рекомендуется установить 7-Zip или WinRAR.") else (call :log "[OK] Архиватор установлен.")
+if %found_archiver%==0 (echo [!] Archiver not found. Recommended: 7-Zip or WinRAR. & echo [!] Archiver not found. >> "%report%") else (echo [OK] Archiver installed. & echo [OK] Archiver installed. >> "%report%")
 
 set "found_pdf=0"
 findstr /I /C:"Adobe Acrobat" /C:"Foxit" /C:"SumatraPDF" "%temp_apps%" >nul && set "found_pdf=1"
-if %found_pdf%==0 (call :log "[!] PDF-ридер не найден. Рекомендуется установить Adobe Acrobat Reader или Foxit Reader.") else (call :log "[OK] PDF-ридер установлен.")
+if %found_pdf%==0 (echo [!] PDF reader not found. & echo [!] PDF reader not found. >> "%report%") else (echo [OK] PDF reader installed. & echo [OK] PDF reader installed. >> "%report%")
 
 set "found_antivirus=0"
 findstr /I /C:"Kaspersky" /C:"ESET" /C:"Dr.Web" /C:"Defender" "%temp_apps%" >nul && set "found_antivirus=1"
-if %found_antivirus%==0 (call :log "[!] Антивирус не найден. Рекомендуется проверить защиту.") else (call :log "[OK] Антивирус установлен.")
-call :log ""
+if %found_antivirus%==0 (echo [!] Antivirus not found. & echo [!] Antivirus not found. >> "%report%") else (echo [OK] Antivirus installed. & echo [OK] Antivirus installed. >> "%report%")
+echo.
+echo. >> "%report%"
 
-REM Проверка излишнего ПО
-call :log "=========================================="
-call :log "  ПРОГРАММЫ, ТРЕБУЮЩИЕ ПРОВЕРКИ"
-call :log "  (не относятся к базовым офисным задачам)"
-call :log "=========================================="
+echo ==========================================
+echo   SOFTWARE REQUIRING REVIEW
+echo ==========================================
+echo ========================================== >> "%report%"
+echo   SOFTWARE REQUIRING REVIEW >> "%report%"
+echo ========================================== >> "%report%"
 
-call :log "Игры и игровые платформы:"
+echo Games and gaming platforms:
+echo Games and gaming platforms: >> "%report%"
 findstr /I /C:"Steam" /C:"Epic Games" /C:"Origin" /C:"Game" "%temp_apps%" >> "%report%"
 findstr /I /C:"Steam" /C:"Epic Games" /C:"Origin" /C:"Game" "%temp_apps%"
 findstr /I /C:"Steam" /C:"Epic Games" /C:"Origin" /C:"Game" "%temp_apps%" >nul
-if errorlevel 1 call :log "  - Не обнаружено (отлично!)"
+if errorlevel 1 echo   - Not found (good!) & if errorlevel 1 echo   - Not found (good!) >> "%report%"
 
-call :log "Торрент-клиенты:"
+echo Torrent clients:
+echo Torrent clients: >> "%report%"
 findstr /I /C:"uTorrent" /C:"BitTorrent" /C:"qBittorrent" "%temp_apps%" >> "%report%"
 findstr /I /C:"uTorrent" /C:"BitTorrent" /C:"qBittorrent" "%temp_apps%"
 findstr /I /C:"uTorrent" /C:"BitTorrent" /C:"qBittorrent" "%temp_apps%" >nul
-if errorlevel 1 call :log "  - Не обнаружено (отлично!)"
+if errorlevel 1 echo   - Not found (good!) & if errorlevel 1 echo   - Not found (good!) >> "%report%"
 
-call :log "Мессенджеры:"
+echo Messengers:
+echo Messengers: >> "%report%"
 findstr /I /C:"Discord" /C:"Telegram" /C:"WhatsApp" /C:"Viber" /C:"Skype" "%temp_apps%" >> "%report%"
 findstr /I /C:"Discord" /C:"Telegram" /C:"WhatsApp" /C:"Viber" /C:"Skype" "%temp_apps%"
 findstr /I /C:"Discord" /C:"Telegram" /C:"WhatsApp" /C:"Viber" /C:"Skype" "%temp_apps%" >nul
-if errorlevel 1 call :log "  - Не обнаружено (отлично!)"
-call :log ""
-call :log "Примечание: наличие этих программ требует проверки администратором."
+if errorlevel 1 echo   - Not found (good!) & if errorlevel 1 echo   - Not found (good!) >> "%report%"
+echo.
+echo. >> "%report%"
+echo Note: presence of these programs requires administrator review.
+echo Note: presence of these programs requires administrator review. >> "%report%"
 
-REM Удаление временного файла
 if exist "%temp_apps%" del "%temp_apps%"
 
-REM Итог
-call :log ""
-call :log "=========================================="
-call :log "  АУДИТ ЗАВЕРШЕН"
-call :log "  Отчет сохранен: %report%"
-call :log "=========================================="
+echo.
+echo ==========================================
+echo   AUDIT COMPLETED
+echo   Report saved: %report%
+echo ==========================================
+echo.
+echo ========================================== >> "%report%"
+echo   AUDIT COMPLETED >> "%report%"
+echo   Report saved: %report% >> "%report%"
+echo ========================================== >> "%report%"
 
 pause
